@@ -38,7 +38,7 @@ increment_version ()
 
 git diff --name-only -n 1 ${TRAVIS_COMMIT_RANGE}
 
-NEFM=$(git diff --name-only -n 1 ${TRAVIS_COMMIT_RANGE} | grep -Ev '^(keyboards/)' | grep -Ev '^(docs/)' | wc -l)
+NEFM=$(git diff --name-only -n 1 ${TRAVIS_COMMIT_RANGE} | grep -Ev '^(keyboards/)' | grep -Ev '^(docs/)' | grep -Ev '^(users/)' | grep -Ev '^(layouts/)' | wc -l)
 if [[ $NEFM -gt 0 ]] ; then
 	echo "Essential files modified."
 	git fetch --tags
@@ -54,22 +54,25 @@ else
 fi
 
 if [[ "$TRAVIS_COMMIT_MESSAGE" != *"[skip build]"* ]] ; then
-
+	make generate-keyboards-file SILENT=true > .keyboards
 	cd ..
 	git clone git@github.com:qmk/qmk.fm.git
 	cd qmk.fm
 	mv ../qmk_firmware/id_rsa_qmk.fm id_rsa_qmk.fm
+	mv ../qmk_firmware/.keyboards .
 	ssh-add -D
 	eval `ssh-agent -s`
 	ssh-add id_rsa_qmk.fm
 	
-	# not sure this is needed now
+	# don't delete files in case not all keyboards are built
 	# rm -f compiled/*.hex
 
 	# ignore errors here
-	for file in ../qmk_firmware/keyboards/*/keymaps/*/*.hex; do mv -v "$file" "compiled/${file##*/}" || true; done
-	for file in ../qmk_firmware/keyboards/*/*/keymaps/*/*.hex; do mv -v "$file" "compiled/${file##*/}" || true; done
-
+	for file in ../qmk_firmware/keyboards/*/keymaps/*/*_default.hex; do mv -v "$file" "compiled/${file##*/}" || true; done
+	for file in ../qmk_firmware/keyboards/*/*/keymaps/*/*_default.hex; do mv -v "$file" "compiled/${file##*/}" || true; done
+	for file in ../qmk_firmware/keyboards/*/*/*/keymaps/*/*_default.hex; do mv -v "$file" "compiled/${file##*/}" || true; done
+	for file in ../qmk_firmware/keyboards/*/*/*/*/keymaps/*/*_default.hex; do mv -v "$file" "compiled/${file##*/}" || true; done
+	bash _util/generate_keyboard_page.sh
 	git add -A
 	git commit -m "generated from qmk/qmk_firmware@${rev}" 
 	git push git@github.com:qmk/qmk.fm.git
