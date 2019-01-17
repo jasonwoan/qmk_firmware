@@ -15,13 +15,22 @@
  */
 uint32_t default_layer_state = 0;
 
+/** \brief Default Layer State Set At user Level
+ *
+ * FIXME: Needs docs
+ */
+__attribute__((weak))
+uint32_t default_layer_state_set_user(uint32_t state) {
+    return state;
+}
+
 /** \brief Default Layer State Set At Keyboard Level
  *
  * FIXME: Needs docs
  */
 __attribute__((weak))
 uint32_t default_layer_state_set_kb(uint32_t state) {
-    return state;
+    return default_layer_state_set_user(state);
 }
 
 /** \brief Default Layer State Set
@@ -35,7 +44,11 @@ static void default_layer_state_set(uint32_t state)
     default_layer_debug(); debug(" to ");
     default_layer_state = state;
     default_layer_debug(); debug("\n");
+#ifdef STRICT_LAYER_RELEASE
     clear_keyboard_but_mods(); // To avoid stuck keys
+#else
+    clear_keyboard_but_mods_and_keys(); // Don't reset held keys
+#endif
 }
 
 /** \brief Default Layer Print
@@ -118,12 +131,16 @@ void layer_state_set(uint32_t state)
     layer_debug(); dprint(" to ");
     layer_state = state;
     layer_debug(); dprintln();
+#ifdef STRICT_LAYER_RELEASE
     clear_keyboard_but_mods(); // To avoid stuck keys
+#else
+    clear_keyboard_but_mods_and_keys(); // Don't reset held keys
+#endif
 }
 
 /** \brief Layer clear
  *
- * FIXME: Needs docs
+ * Turn off all layers.
  */
 void layer_clear(void)
 {
@@ -132,7 +149,7 @@ void layer_clear(void)
 
 /** \brief Layer state is
  *
- * FIXME: Needs docs
+ * Return whether the given state is on (it might still be shadowed by a higher state, though).
  */
 bool layer_state_is(uint8_t layer)
 {
@@ -150,7 +167,7 @@ bool layer_state_cmp(uint32_t cmp_layer_state, uint8_t layer) {
 
 /** \brief Layer move
  *
- * FIXME: Needs docs
+ * Turn on the given layer and turn off all other layers.
  */
 void layer_move(uint8_t layer)
 {
@@ -159,7 +176,7 @@ void layer_move(uint8_t layer)
 
 /** \brief Layer on
  *
- * FIXME: Needs docs
+ * Turn on the given layer.
  */
 void layer_on(uint8_t layer)
 {
@@ -177,7 +194,7 @@ void layer_off(uint8_t layer)
 
 /** \brief Layer invert
  *
- * FIXME: Needs docs
+ * Toggle the given layer (set it if it's unset, or unset it if it's set).
  */
 void layer_invert(uint8_t layer)
 {
@@ -211,7 +228,7 @@ void layer_xor(uint32_t state)
 
 /** \brief Layer debug printing
  *
- * FIXME: Needs docs
+ * Print out the hex value of the 32-bit layer state, as well as the value of the highest bit.
  */
 void layer_debug(void)
 {
@@ -219,7 +236,7 @@ void layer_debug(void)
 }
 #endif
 
-#if !defined(NO_ACTION_LAYER) && defined(PREVENT_STUCK_MODIFIERS)
+#if !defined(NO_ACTION_LAYER) && !defined(STRICT_LAYER_RELEASE)
 uint8_t source_layers_cache[(MATRIX_ROWS * MATRIX_COLS + 7) / 8][MAX_LAYER_BITS] = {{0}};
 
 void update_source_layers_cache(keypos_t key, uint8_t layer)
@@ -263,7 +280,7 @@ uint8_t read_source_layers_cache(keypos_t key)
  */
 action_t store_or_get_action(bool pressed, keypos_t key)
 {
-#if !defined(NO_ACTION_LAYER) && defined(PREVENT_STUCK_MODIFIERS)
+#if !defined(NO_ACTION_LAYER) && !defined(STRICT_LAYER_RELEASE)
     if (disable_action_cache) {
         return layer_switch_get_action(key);
     }
